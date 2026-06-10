@@ -1,0 +1,2231 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Ding-dong - PA1 Anaglyph Stereo</title>
+  <style>
+    :root {
+      --panel-bg: #fff8;
+      --panel-border: #e6eef7;
+      --accent: #2b7cff;
+      --text: #0b1830;
+      --muted: #5b6a86;
+      --chip: #0000000d;
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+    }
+
+    body {
+      background: #eef6ff;
+      font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+    }
+
+    #gl {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      background: #f9feff;
+    }
+
+    .hud {
+      position: fixed;
+      left: 14px;
+      top: 14px;
+      max-width: 880px;
+      padding: 14px;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 10px 24px #00000014;
+      font-size: 14px;
+      line-height: 1.25;
+      z-index: 10;
+    }
+
+    .hud-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .title {
+      font-size: 14px;
+    }
+
+    .title b {
+      margin-right: 4px;
+    }
+
+    .hud.collapsed {
+      padding-bottom: 8px;
+    }
+
+    .hud.collapsed #hudBody {
+      display: none;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin: 6px 0;
+      flex-wrap: wrap;
+    }
+
+    .row label {
+      color: var(--muted);
+    }
+
+    .row input[type=range] {
+      flex: 1;
+      accent-color: var(--accent);
+    }
+
+    .row input[type=checkbox] {
+      accent-color: var(--accent);
+    }
+
+    .value {
+      min-width: 70px;
+      text-align: right;
+    }
+
+    .stat {
+      display: inline-block;
+      background: var(--chip);
+      border-radius: 10px;
+      padding: 3px 8px;
+      margin: 3px 6px 0 0;
+    }
+
+    .btn,
+    select,
+    .text-input {
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--panel-border);
+      background: #fff;
+      color: var(--text);
+    }
+
+    .btn,
+    select {
+      cursor: pointer;
+    }
+
+    select {
+      padding: 4px 8px;
+    }
+
+    .btn-icon {
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .row.mini {
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gl"></canvas>
+  <video id="webcamVideo" playsinline autoplay muted style="display:none"></video>
+
+  <div class="hud">
+    <div class="hud-header">
+      <div class="title">
+        <b>Ding-dong</b>:
+        <span id="eqText">
+          x&sup2; + y&sup2; = k(1 − z)z&sup2;, z ∈ [−1, 1]
+        </span>
+      </div>
+      <button id="hudToggle" class="btn btn-icon" title="Згорнути / розгорнути меню">−</button>
+    </div>
+
+    <div id="hudBody">
+      <div class="row">
+        <label style="min-width:200px">Scale (model)</label>
+        <input id="scale" type="range" min="0.5" max="3" step="0.01" value="1.20" />
+        <span id="scale_v" class="value">1.20×</span>
+      </div>
+
+      <div class="row">
+        <label style="min-width:200px">Inflate / Deflate (k)</label>
+        <input id="inflate" type="range" min="0.1" max="4" step="0.01" value="1.00" />
+        <span id="inflate_v" class="value">k = 1.00</span>
+      </div>
+
+      <!-- TASK 2 (PA#2): segU / segV sliders already implemented -->
+      <div class="row">
+        <label style="min-width:200px">segU (θ samples per circle)</label>
+        <input id="segU" type="range" min="6" max="256" step="1" value="48" />
+        <span id="segU_v" class="value">48</span>
+      </div>
+
+      <div class="row">
+        <label style="min-width:200px">segV (z samples per meridian)</label>
+        <input id="segV" type="range" min="6" max="256" step="1" value="48" />
+        <span id="segV_v" class="value">48</span>
+      </div>
+
+      <div class="row">
+        <label style="min-width:200px">Eye separation</label>
+        <input id="eyeSep" type="range" min="0" max="0.5" step="0.005" value="0.16" />
+        <span id="eyeSep_v" class="value">0.16</span>
+      </div>
+
+      <div class="row">
+        <label style="min-width:200px">Field of View</label>
+        <input id="fov" type="range" min="25" max="85" step="1" value="45" />
+        <span id="fov_v" class="value">45 deg</span>
+      </div>
+
+      <div class="row">
+        <label style="min-width:200px">Near clipping</label>
+        <input id="nearClip" type="range" min="0.02" max="1" step="0.01" value="0.05" />
+        <span id="nearClip_v" class="value">0.05</span>
+      </div>
+
+      <div class="row">
+        <label style="min-width:200px">Convergence distance</label>
+        <input id="convergence" type="range" min="1" max="10" step="0.05" value="5.5" />
+        <span id="convergence_v" class="value">5.50</span>
+      </div>
+
+      <div class="row">
+        <label style="min-width:200px">Web camera</label>
+        <button id="webcamToggle" class="btn">start camera</button>
+        <span id="webcamStatus" class="stat">zero parallax plane: off</span>
+      </div>
+
+      <div class="row">
+        <label style="min-width:200px">iPhone TUI</label>
+        <input id="sensorUrl" class="text-input" type="text" value="ws://localhost:8080" style="width:220px" />
+        <button id="sensorConnect" class="btn">connect</button>
+        <button id="sensorCalibrate" class="btn">calibrate</button>
+        <label>
+          <input id="sensorEnabled" type="checkbox" checked />
+          Use phone orientation
+        </label>
+        <span id="sensorStatus" class="stat">sensor: disconnected</span>
+      </div>
+
+      <div class="row mini">
+        <span class="stat" id="sensorValues">gyro rad/s: 0.00, 0.00, 0.00</span>
+        <span style="color:#5b6a86">
+          Sensor Logger sends HTTP POST to the Node bridge; this page receives WebSocket data every 20 ms.
+        </span>
+      </div>
+
+      <div class="row">
+        <label>
+          <input id="easeZ" type="checkbox" checked />
+          Smooth z spacing
+        </label>
+
+        <label>
+          <input id="showShadow" type="checkbox" checked />
+          Show floor shadow
+        </label>
+
+        <label>
+          <input id="showWire" type="checkbox" checked />
+          Show wire
+        </label>
+
+        <label>
+          <input id="showPoints" type="checkbox" />
+          Show vertices
+        </label>
+
+        <label>
+          Fill triangles (Phong)
+          <input id="fillTris" type="checkbox" checked />
+        </label>
+
+        <label>
+          Point size
+          <input
+            id="ptSize"
+            type="range"
+            min="1"
+            max="12"
+            step="1"
+            value="4"
+            style="width:160px"
+          />
+        </label>
+      </div>
+
+      <div class="row">
+        <label style="min-width:200px">Material</label>
+        <select id="material">
+          <option value="0" selected>Plastic</option>
+          <option value="1">Metal</option>
+          <option value="2">Glossy</option>
+          <option value="3">Matte stone</option>
+          <option value="4">Wax</option>
+          <option value="5">Rubber</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label style="min-width:200px">Specular power</label>
+        <input
+          id="specPow"
+          type="range"
+          min="4"
+          max="256"
+          step="1"
+          value="64"
+          style="flex:1"
+        />
+      </div>
+
+      <div class="row">
+        <label style="min-width:200px">Light mode</label>
+        <select id="lightMode">
+          <option value="auto_world" selected>Auto (world orbit)</option>
+          <option value="auto_view">Auto (view orbit)</option>
+          <option value="manual">Manual (W/A/S/D)</option>
+        </select>
+        <span style="color:#5b6a86">
+          У Manual світло рухається клавішами W/A/S/D
+        </span>
+      </div>
+
+      <!-- === ЗАВДАННЯ 1: Три текстури (diffuse/specular/normal) для освітлення === -->
+      <div class="row">
+        <label style="min-width:200px">
+          Texturing (lighting components)
+        </label>
+        <label>
+          <input id="useDiffuseTex" type="checkbox" checked />
+          Diffuse texture (modulates diffuse)
+        </label>
+        <label>
+          <input id="useSpecularTex" type="checkbox" checked />
+          Specular texture (modulates specular)
+        </label>
+        <label>
+          <input id="useNormalTex" type="checkbox" checked />
+          Normal map (per-pixel normals)
+        </label>
+      </div>
+
+      <!-- ЗАВДАННЯ 1: вибір набору з трьох текстур -->
+      <div class="row">
+        <label style="min-width:200px">Texture set</label>
+        <select id="texSet">
+          <option value="0" selected>Set 1 — Default</option>
+          <option value="1">Set 2 — Metal / Scratches</option>
+          <option value="2">Set 3 — Stone</option>
+        </select>
+        <span style="color:#5b6a86">
+          Вибери набір дифузної, дзеркальної та нормальної текстур
+        </span>
+      </div>
+
+      <!-- ргр: слайдер масштабування текстурних координат (texture scaling in UV) -->
+      <div class="row">
+        <label style="min-width:200px">Texture scale (UV)</label>
+        <input id="texScale" type="range" min="0.25" max="4" step="0.01" value="1.00" />
+        <span id="texScale_v" class="value">1.00×</span>
+      </div>
+
+      <!-- ргр: слайдер для повороту текстури навколо pivot (texture rotation) -->
+      <div class="row">
+        <label style="min-width:200px">Texture rotation (deg)</label>
+        <input id="texRot" type="range" min="-180" max="180" step="1" value="0" />
+        <span id="texRot_v" class="value">0°</span>
+      </div>
+
+      <!-- ргр: відображення положення pivot в (u,v), який рухається за допомогою A/W/S/D -->
+      <div class="row mini">
+        <span class="stat" id="texPivotStat">
+          Tex pivot (u, v): (0.00, 0.00)
+        </span>
+        <span style="color:#5b6a86">
+          A/D — уздовж u, W/S — уздовж v (коли Light mode ≠ Manual)
+        </span>
+      </div>
+
+      <div class="row mini">
+        <span class="stat">
+          Нормальна текстура: пер-піксельні нормалі в тангентному просторі,
+          Gram–Schmidt з пріоритетом дотичної (tangent), варіант 15.
+        </span>
+      </div>
+
+      <div class="row mini">
+        <span class="stat" id="statSeg">segU×segV: —</span>
+        <span class="stat" id="statVerts">grid verts: —</span>
+      </div>
+
+      <div class="row">
+        <label style="min-width:200px">Reset view</label>
+        <button id="reset" class="btn">center</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHONG (with textures + normal map) -->
+  <script id="vsPhong" type="x-shader/x-vertex">
+attribute vec3 a_pos;
+attribute vec3 a_norm;                 // нормалі до вершини
+attribute vec2 a_uv;                   // текстурні координати
+
+uniform mat4 u_proj, u_view, u_model;
+
+varying vec3 v_pos;                    // світові координати вершини
+varying vec3 v_norm;                   // нормаль у світовому просторі
+varying vec2 v_uv;                     // UV
+
+void main() {
+  // Перевід вершини в світові координати
+  vec4 wp = u_model * vec4(a_pos, 1.0);
+  v_pos = wp.xyz;
+
+  // Трансформація нормалі (без зсуву) у світовий простір
+  v_norm = normalize(mat3(u_model) * a_norm);
+
+  // ргр: повторне використання текстурного відображення з контрольного завдання — передаємо UV у фрагментний шейдер
+  v_uv = a_uv;
+
+  // Перевід у кліп-простір (проєкція + вид)
+  gl_Position = u_proj * u_view * wp;
+}
+  </script>
+
+  <script id="fsPhong" type="x-shader/x-fragment">
+#extension GL_OES_standard_derivatives : enable
+precision mediump float;
+
+varying vec3 v_pos;
+varying vec3 v_norm;
+varying vec2 v_uv;
+
+uniform vec3  u_lightPos;
+uniform vec3  u_eyePos;
+uniform vec3  u_baseColor;
+uniform float u_specPow;
+uniform int   u_material;
+
+// === Три текстурні семплери (diffuse/specular/normal) ===
+uniform sampler2D u_diffuseTex;
+uniform sampler2D u_specularTex;
+uniform sampler2D u_normalTex;
+
+// Перемикачі (0 / 1 як int)
+uniform int u_useDiffuseTex;
+uniform int u_useSpecularTex;
+uniform int u_useNormalTex;
+
+// ргр: uniform-параметри для керування трансформацією текстури:
+//     u_texPivot — зсув pivot у (u,v),
+//     u_texScale — масштаб UV,
+//     u_texAngle — кут повороту в радіанах.
+uniform vec2  u_texPivot;   // тут використовуємо як зсув по (u,v)
+uniform float u_texScale;
+uniform float u_texAngle;
+
+void main() {
+  // Початкова нормаль (з вершинного шейдера)
+  vec3 N = normalize(v_norm);
+
+  // Базові UV з вершинного шейдера
+  vec2 uv = v_uv;
+
+  // ргр: масштабування та обертання текстурних координат навколо центру (0.5, 0.5):
+  //     спочатку переносимо в систему координат з центром у (0.5, 0.5),
+  //     далі застосовуємо матрицю повороту R і ділимо на масштаб u_texScale.
+  uv -= vec2(0.5);
+  float ca = cos(u_texAngle);
+  float sa = sin(u_texAngle);
+  mat2 R = mat2(ca, -sa,
+                sa,  ca);
+  uv = R * uv;
+  uv /= u_texScale;
+  uv += vec2(0.5);
+
+  // ргр: зсув точки pivot по поверхні в (u,v) — сюди приходить значення,
+  //     яке змінюється з клавіатури (A/D/W/S) у JS-коді.
+  uv += u_texPivot;
+
+  // 3) Повторення і невеликий відступ від країв, щоб прибрати шов
+  uv = fract(uv);
+  uv = mix(vec2(0.002), vec2(0.998), uv);
+
+  // === Побудова TBN з похідних + Gram–Schmidt з пріоритетом дотичної (variant 15) ===
+  vec3 dp1 = dFdx(v_pos);
+  vec3 dp2 = dFdy(v_pos);
+  vec2 duv1 = dFdx(v_uv);
+  vec2 duv2 = dFdy(v_uv);
+
+  // Базовий тангент через UV-градієнти
+  vec3 T = dp1 * duv2.y - dp2 * duv1.y;
+
+  // Gram–Schmidt: ПРІОРИТЕТ TANGENT
+  T = normalize(T);
+  N = normalize(N - T * dot(T, N));
+  vec3 B = normalize(cross(N, T));
+
+  // Матриця переходу в/з тангентного простору
+  mat3 TBN = mat3(T, B, N);
+
+  // Normal map у тангентному просторі (пер-піксельні нормалі)
+  if (u_useNormalTex == 1) {
+    vec3 nTex = texture2D(u_normalTex, uv).xyz * 2.0 - 1.0;
+    N = normalize(TBN * nTex);
+  }
+
+  vec3 L = normalize(u_lightPos - v_pos);
+  vec3 V = normalize(u_eyePos - v_pos);
+  vec3 H = normalize(L + V);
+
+  float ndotl = max(dot(N, L), 0.0);
+  float diff = ndotl;
+
+  float spec = 0.0;
+  if (ndotl > 0.0) {
+    float ndoth = max(dot(N, H), 0.0);
+    spec = pow(ndoth, u_specPow);
+  }
+
+  // Параметри матеріалів
+  float ka;
+  float kd;
+  float ksIntensity;
+  vec3  specColor;
+
+  if (u_material == 0) {
+    ka = 0.12;
+    kd = 1.0;
+    ksIntensity = 1.5;
+    specColor = vec3(1.0);
+  } else if (u_material == 1) {
+    ka = 0.03;
+    kd = 0.6;
+    ksIntensity = 2.8;
+    specColor = u_baseColor;
+  } else if (u_material == 2) {
+    ka = 0.06;
+    kd = 0.8;
+    ksIntensity = 3.5;
+    specColor = vec3(1.0);
+  } else if (u_material == 3) {
+    ka = 0.20;
+    kd = 0.9;
+    ksIntensity = 0.3;
+    specColor = vec3(1.0);
+  } else if (u_material == 4) {
+    ka = 0.18;
+    kd = 0.7;
+    ksIntensity = 0.9;
+    specColor = vec3(1.0);
+  } else {
+    ka = 0.10;
+    kd = 0.5;
+    ksIntensity = 0.4;
+    specColor = vec3(1.0);
+  }
+
+  // diffuse texture модулює дифузну складову
+  vec3 baseColor = u_baseColor;
+  if (u_useDiffuseTex == 1) {
+    vec3 texCol = texture2D(u_diffuseTex, uv).rgb;
+    baseColor *= texCol;
+  }
+
+  // specular texture модулює дзеркальну складову
+  vec3 specCol = specColor;
+  if (u_useSpecularTex == 1) {
+    specCol *= texture2D(u_specularTex, uv).rgb;
+  }
+
+  vec3 ambient  = ka * baseColor;
+  vec3 diffuse  = kd * diff * baseColor;
+
+  float specBoost = 0.5 + u_specPow / 64.0;
+  vec3 specular = ksIntensity * specBoost * spec * specCol;
+
+  vec3 color = ambient + diffuse + specular;
+
+  gl_FragColor = vec4(color, 1.0);
+}
+  </script>
+
+  <!-- Color-only shaders (wireframe, points, shadow) -->
+  <script id="vsColor" type="x-shader/x-vertex">
+attribute vec3 a_pos;
+
+uniform mat4  u_proj;
+uniform mat4  u_view;
+uniform mat4  u_model;
+uniform bool  u_useFloor;
+uniform float u_floorZ;
+uniform float u_pointSize;
+uniform vec3  u_lightPos;
+
+void main() {
+  vec3 p = a_pos;
+
+  // Проєкція тіні від точкового світла на площину z = u_floorZ
+  if (u_useFloor) {
+    vec3 L   = u_lightPos;
+    vec3 dir = p - L;
+    float dz = dir.z;
+
+    if (abs(dz) > 1e-4) {
+      float t = (u_floorZ - L.z) / dz;
+      p = L + t * dir;
+    } else {
+      p.z = u_floorZ;
+    }
+  }
+
+  gl_Position = u_proj * u_view * u_model * vec4(p, 1.0);
+  gl_PointSize = u_pointSize;
+}
+  </script>
+
+  <script id="fsColor" type="x-shader/x-fragment">
+precision mediump float;
+
+uniform vec4 u_rgba;
+uniform bool u_isPoint;
+
+void main() {
+  if (u_isPoint) {
+    vec2 uv = gl_PointCoord * 2.0 - 1.0;
+    if (dot(uv, uv) > 1.0) discard;
+  }
+  gl_FragColor = u_rgba;
+}
+  </script>
+
+  <script id="vsVideo" type="x-shader/x-vertex">
+attribute vec2 a_pos;
+attribute vec2 a_uv;
+
+varying vec2 v_uv;
+
+void main() {
+  v_uv = a_uv;
+  gl_Position = vec4(a_pos, 0.0, 1.0);
+}
+  </script>
+
+  <script id="fsVideo" type="x-shader/x-fragment">
+precision mediump float;
+
+uniform sampler2D u_video;
+uniform int u_ready;
+
+varying vec2 v_uv;
+
+void main() {
+  if (u_ready == 1) {
+    gl_FragColor = texture2D(u_video, v_uv);
+  } else {
+    gl_FragColor = vec4(0.88, 0.93, 0.96, 1.0);
+  }
+}
+  </script>
+
+  <script>
+    (function () {
+      const canvas = document.getElementById('gl');
+      const gl = canvas.getContext('webgl', { antialias: true });
+
+      if (!gl) {
+        alert('WebGL not supported');
+        return;
+      }
+
+      gl.getExtension('OES_element_index_uint');
+      const derivExt = gl.getExtension('OES_standard_derivatives');
+      if (!derivExt) {
+        console.warn('OES_standard_derivatives not supported — normal map може не працювати.');
+      }
+
+      gl.enable(gl.DEPTH_TEST);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.clearColor(0.92, 0.97, 1.0, 1.0);
+
+      function resize() {
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
+        const w = Math.floor(canvas.clientWidth * dpr);
+        const h = Math.floor(canvas.clientHeight * dpr);
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+        }
+      }
+
+      addEventListener('resize', resize);
+      resize();
+
+      function compile(id, type) {
+        const s = gl.createShader(type);
+        gl.shaderSource(s, document.getElementById(id).textContent);
+        gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+          throw new Error(gl.getShaderInfoLog(s) || ('Shader compile error in ' + id));
+        }
+        return s;
+      }
+
+      function makeProgram(vsId, fsId) {
+        const p = gl.createProgram();
+        gl.attachShader(p, compile(vsId, gl.VERTEX_SHADER));
+        gl.attachShader(p, compile(fsId, gl.FRAGMENT_SHADER));
+        gl.linkProgram(p);
+        if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+          throw new Error(gl.getProgramInfoLog(p) || 'Program link error');
+        }
+        return p;
+      }
+
+      const progPhong = makeProgram('vsPhong', 'fsPhong');
+      const locP = {
+        a_pos: gl.getAttribLocation(progPhong, 'a_pos'),
+        a_norm: gl.getAttribLocation(progPhong, 'a_norm'),
+        a_uv: gl.getAttribLocation(progPhong, 'a_uv'),
+        u_proj: gl.getUniformLocation(progPhong, 'u_proj'),
+        u_view: gl.getUniformLocation(progPhong, 'u_view'),
+        u_model: gl.getUniformLocation(progPhong, 'u_model'),
+        u_lightPos: gl.getUniformLocation(progPhong, 'u_lightPos'),
+        u_eyePos: gl.getUniformLocation(progPhong, 'u_eyePos'),
+        u_baseColor: gl.getUniformLocation(progPhong, 'u_baseColor'),
+        u_specPow: gl.getUniformLocation(progPhong, 'u_specPow'),
+        u_material: gl.getUniformLocation(progPhong, 'u_material'),
+        u_diffuseTex: gl.getUniformLocation(progPhong, 'u_diffuseTex'),
+        u_specularTex: gl.getUniformLocation(progPhong, 'u_specularTex'),
+        u_normalTex: gl.getUniformLocation(progPhong, 'u_normalTex'),
+        u_useDiffuseTex: gl.getUniformLocation(progPhong, 'u_useDiffuseTex'),
+        u_useSpecularTex: gl.getUniformLocation(progPhong, 'u_useSpecularTex'),
+        u_useNormalTex: gl.getUniformLocation(progPhong, 'u_useNormalTex'),
+        u_texPivot: gl.getUniformLocation(progPhong, 'u_texPivot'),
+        u_texScale: gl.getUniformLocation(progPhong, 'u_texScale'),
+        u_texAngle: gl.getUniformLocation(progPhong, 'u_texAngle')
+      };
+
+      const progColor = makeProgram('vsColor', 'fsColor');
+      const locC = {
+        a_pos: gl.getAttribLocation(progColor, 'a_pos'),
+        u_proj: gl.getUniformLocation(progColor, 'u_proj'),
+        u_view: gl.getUniformLocation(progColor, 'u_view'),
+        u_model: gl.getUniformLocation(progColor, 'u_model'),
+        u_rgba: gl.getUniformLocation(progColor, 'u_rgba'),
+        u_isPoint: gl.getUniformLocation(progColor, 'u_isPoint'),
+        u_useFloor: gl.getUniformLocation(progColor, 'u_useFloor'),
+        u_floorZ: gl.getUniformLocation(progColor, 'u_floorZ'),
+        u_pointSize: gl.getUniformLocation(progColor, 'u_pointSize'),
+        u_lightPos: gl.getUniformLocation(progColor, 'u_lightPos')
+      };
+
+      const progVideo = makeProgram('vsVideo', 'fsVideo');
+      const locV = {
+        a_pos: gl.getAttribLocation(progVideo, 'a_pos'),
+        a_uv: gl.getAttribLocation(progVideo, 'a_uv'),
+        u_video: gl.getUniformLocation(progVideo, 'u_video'),
+        u_ready: gl.getUniformLocation(progVideo, 'u_ready')
+      };
+
+      // === Perspective + lookAt ===
+      function perspective(fovy, aspect, near, far) {
+        const f = 1 / Math.tan(fovy / 2);
+        const nf = 1 / (near - far);
+        return new Float32Array([
+          f / aspect, 0, 0, 0,
+          0, f, 0, 0,
+          0, 0, (far + near) * nf, -1,
+          0, 0, (2 * far * near) * nf, 0
+        ]);
+      }
+
+      function frustum(left, right, bottom, top, near, far) {
+        const rl = 1 / (right - left);
+        const tb = 1 / (top - bottom);
+        const nf = 1 / (near - far);
+        return new Float32Array([
+          2 * near * rl, 0, 0, 0,
+          0, 2 * near * tb, 0, 0,
+          (right + left) * rl, (top + bottom) * tb, (far + near) * nf, -1,
+          0, 0, 2 * far * near * nf, 0
+        ]);
+      }
+
+      function StereoCamera(
+        convergence,
+        eyeSeparation,
+        aspectRatio,
+        fov,
+        nearClippingDistance,
+        farClippingDistance
+      ) {
+        this.mConvergence = convergence;
+        this.mEyeSeparation = eyeSeparation;
+        this.mAspectRatio = aspectRatio;
+        this.mFOV = fov * Math.PI / 180.0;
+        this.mNearClippingDistance = nearClippingDistance;
+        this.mFarClippingDistance = farClippingDistance;
+      }
+
+      StereoCamera.prototype._frustumValues = function (side) {
+        const top = this.mNearClippingDistance * Math.tan(this.mFOV / 2);
+        const bottom = -top;
+        const a = this.mAspectRatio * Math.tan(this.mFOV / 2) * this.mConvergence;
+        const b = a - this.mEyeSeparation / 2;
+        const c = a + this.mEyeSeparation / 2;
+        const k = this.mNearClippingDistance / this.mConvergence;
+
+        if (side === 'left') {
+          return { left: -b * k, right: c * k, bottom, top };
+        }
+
+        return { left: -c * k, right: b * k, bottom, top };
+      };
+
+      StereoCamera.prototype.applyLeftFrustum = function (baseView) {
+        const f = this._frustumValues('left');
+        return {
+          proj: frustum(
+            f.left,
+            f.right,
+            f.bottom,
+            f.top,
+            this.mNearClippingDistance,
+            this.mFarClippingDistance
+          ),
+          view: mulMat4(translateMat(this.mEyeSeparation / 2, 0, 0), baseView)
+        };
+      };
+
+      StereoCamera.prototype.applyRightFrustum = function (baseView) {
+        const f = this._frustumValues('right');
+        return {
+          proj: frustum(
+            f.left,
+            f.right,
+            f.bottom,
+            f.top,
+            this.mNearClippingDistance,
+            this.mFarClippingDistance
+          ),
+          view: mulMat4(translateMat(-this.mEyeSeparation / 2, 0, 0), baseView)
+        };
+      };
+
+      function lookAt(eye, center, up) {
+        let [ex, ey, ez] = eye;
+        let [cx, cy, cz] = center;
+        let [ux, uy, uz] = up;
+
+        let zx = ex - cx;
+        let zy = ey - cy;
+        let zz = ez - cz;
+        {
+          let l = Math.hypot(zx, zy, zz);
+          zx /= l;
+          zy /= l;
+          zz /= l;
+        }
+
+        let xx = uy * zz - uz * zy;
+        let yy = uz * zx - ux * zz;
+        let zzx = ux * zy - uy * zx;
+        {
+          let l = Math.hypot(xx, yy, zzx);
+          xx /= l;
+          yy /= l;
+          zzx /= l;
+        }
+
+        ux = zy * zzx - zz * yy;
+        uy = zz * xx - zx * zzx;
+        uz = zx * yy - zy * xx;
+
+        return new Float32Array([
+          xx, ux, zx, 0,
+          yy, uy, zy, 0,
+          zzx, uz, zz, 0,
+          -(xx * ex + yy * ey + zzx * ez),
+          -(ux * ex + uy * ey + uz * ez),
+          -(zx * ex + zy * ey + zz * ez),
+          1
+        ]);
+      }
+
+      function scaleMat(s) {
+        return new Float32Array([
+          s, 0, 0, 0,
+          0, s, 0, 0,
+          0, 0, s, 0,
+          0, 0, 0, 1
+        ]);
+      }
+
+      function translateMat(tx, ty, tz) {
+        return new Float32Array([
+          1, 0, 0, 0,
+          0, 1, 0, 0,
+          0, 0, 1, 0,
+          tx, ty, tz, 1
+        ]);
+      }
+
+      function mulMat4(a, b) {
+        const out = new Float32Array(16);
+        for (let i = 0; i < 4; i++) {
+          const ai0 = a[i];
+          const ai1 = a[i + 4];
+          const ai2 = a[i + 8];
+          const ai3 = a[i + 12];
+          out[i]      = ai0 * b[0] + ai1 * b[1] + ai2 * b[2] + ai3 * b[3];
+          out[i + 4]  = ai0 * b[4] + ai1 * b[5] + ai2 * b[6] + ai3 * b[7];
+          out[i + 8]  = ai0 * b[8] + ai1 * b[9] + ai2 * b[10] + ai3 * b[11];
+          out[i + 12] = ai0 * b[12] + ai1 * b[13] + ai2 * b[14] + ai3 * b[15];
+        }
+        return out;
+      }
+
+      function rotateY(a) {
+        const c = Math.cos(a);
+        const s = Math.sin(a);
+        return new Float32Array([
+          c, 0, -s, 0,
+          0, 1, 0, 0,
+          s, 0,  c, 0,
+          0, 0,  0, 1
+        ]);
+      }
+
+      function rotateX(a) {
+        const c = Math.cos(a);
+        const s = Math.sin(a);
+        return new Float32Array([
+          1, 0,  0, 0,
+          0, c,  s, 0,
+          0, -s, c, 0,
+          0, 0,  0, 1
+        ]);
+      }
+
+      function transposeRotationMat4(m) {
+        return new Float32Array([
+          m[0], m[4], m[8], 0,
+          m[1], m[5], m[9], 0,
+          m[2], m[6], m[10], 0,
+          0, 0, 0, 1
+        ]);
+      }
+
+      function normalizeQuat(q) {
+        const len = Math.hypot(q[0], q[1], q[2], q[3]) || 1;
+        q[0] /= len;
+        q[1] /= len;
+        q[2] /= len;
+        q[3] /= len;
+        return q;
+      }
+
+      function multiplyQuat(a, b) {
+        const aw = a[0], ax = a[1], ay = a[2], az = a[3];
+        const bw = b[0], bx = b[1], by = b[2], bz = b[3];
+        return [
+          aw * bw - ax * bx - ay * by - az * bz,
+          aw * bx + ax * bw + ay * bz - az * by,
+          aw * by - ax * bz + ay * bw + az * bx,
+          aw * bz + ax * by - ay * bx + az * bw
+        ];
+      }
+
+      function deltaQuatFromGyro(x, y, z, dt) {
+        const omega = Math.hypot(x, y, z);
+        if (omega < 1e-7 || dt <= 0) return [1, 0, 0, 0];
+        const halfTheta = omega * dt * 0.5;
+        const s = Math.sin(halfTheta) / omega;
+        return [Math.cos(halfTheta), x * s, y * s, z * s];
+      }
+
+      function matrixFromQuat(q) {
+        const qw = q[0], qx = q[1], qy = q[2], qz = q[3];
+        const sqx = 2 * qx * qx;
+        const sqy = 2 * qy * qy;
+        const sqz = 2 * qz * qz;
+        const qxqy = 2 * qx * qy;
+        const qzqw = 2 * qz * qw;
+        const qxqz = 2 * qx * qz;
+        const qyqw = 2 * qy * qw;
+        const qyqz = 2 * qy * qz;
+        const qxqw = 2 * qx * qw;
+
+        return new Float32Array([
+          1 - sqy - sqz, qxqy + qzqw, qxqz - qyqw, 0,
+          qxqy - qzqw, 1 - sqx - sqz, qyqz + qxqw, 0,
+          qxqz + qyqw, qyqz - qxqw, 1 - sqx - sqy, 0,
+          0, 0, 0, 1
+        ]);
+      }
+
+      function quatFromEuler(roll, pitch, yaw) {
+        const cr = Math.cos(roll * 0.5);
+        const sr = Math.sin(roll * 0.5);
+        const cp = Math.cos(pitch * 0.5);
+        const sp = Math.sin(pitch * 0.5);
+        const cy = Math.cos(yaw * 0.5);
+        const sy = Math.sin(yaw * 0.5);
+
+        return normalizeQuat([
+          cr * cp * cy + sr * sp * sy,
+          sr * cp * cy - cr * sp * sy,
+          cr * sp * cy + sr * cp * sy,
+          cr * cp * sy - sr * sp * cy
+        ]);
+      }
+
+      // Камера
+      let camYaw = 0.8;
+      let camPitch = -0.25;
+      let dist = 3.8;
+
+      let objYaw = 0.0;
+      let objPitch = 0.0;
+
+      let dragging = false;
+      let lx = 0;
+      let ly = 0;
+
+      function getCameraBasis() {
+        const cy = Math.cos(camYaw);
+        const sy = Math.sin(camYaw);
+        const cp = Math.cos(camPitch);
+        const sp = Math.sin(camPitch);
+
+        const eye = [dist * cp * cy, dist * sp, dist * cp * sy];
+
+        let fx = -eye[0];
+        let fy = -eye[1];
+        let fz = -eye[2];
+
+        const fLen = Math.hypot(fx, fy, fz) || 1;
+        fx /= fLen;
+        fy /= fLen;
+        fz /= fLen;
+
+        const forward = [fx, fy, fz];
+        const upWorld = [0, 1, 0];
+
+        let rx = forward[1] * upWorld[2] - forward[2] * upWorld[1];
+        let ry = forward[2] * upWorld[0] - forward[0] * upWorld[2];
+        let rz = forward[0] * upWorld[1] - forward[1] * upWorld[0];
+
+        const rLen = Math.hypot(rx, ry, rz) || 1;
+        rx /= rLen;
+        ry /= rLen;
+        rz /= rLen;
+
+        const right = [rx, ry, rz];
+
+        const ux = right[1] * forward[2] - right[2] * forward[1];
+        const uy = right[2] * forward[0] - right[0] * forward[2];
+        const uz = right[0] * forward[1] - right[1] * forward[0];
+
+        const up = [ux, uy, uz];
+
+        return { forward, right, up, eye };
+      }
+
+      function viewMat() {
+        const { eye } = getCameraBasis();
+        return lookAt(eye, [0, 0, 0], [0, 1, 0]);
+      }
+
+      const $ = id => document.getElementById(id);
+      const ui = {
+        scale: $('scale'),
+        inflate: $('inflate'),
+        segU: $('segU'),
+        segV: $('segV'),
+        easeZ: $('easeZ'),
+        showShadow: $('showShadow'),
+        showWire: $('showWire'),
+        showPoints: $('showPoints'),
+        ptSize: $('ptSize'),
+        fillTris: $('fillTris'),
+        material: $('material'),
+        specPow: $('specPow'),
+        lightMode: $('lightMode'),
+        reset: $('reset'),
+        statSeg: $('statSeg'),
+        statVerts: $('statVerts'),
+        scale_v: $('scale_v'),
+        inflate_v: $('inflate_v'),
+        segU_v: $('segU_v'),
+        segV_v: $('segV_v'),
+        useDiffuseTex: $('useDiffuseTex'),
+        useSpecularTex: $('useSpecularTex'),
+        useNormalTex: $('useNormalTex'),
+        texSet: $('texSet'),
+        texScale: $('texScale'),
+        texScale_v: $('texScale_v'),
+        texPivotStat: $('texPivotStat'),
+        texRot: $('texRot'),
+        texRot_v: $('texRot_v'),
+        eyeSep: $('eyeSep'),
+        eyeSep_v: $('eyeSep_v'),
+        fov: $('fov'),
+        fov_v: $('fov_v'),
+        nearClip: $('nearClip'),
+        nearClip_v: $('nearClip_v'),
+        convergence: $('convergence'),
+        convergence_v: $('convergence_v'),
+        webcamToggle: $('webcamToggle'),
+        webcamStatus: $('webcamStatus'),
+        sensorUrl: $('sensorUrl'),
+        sensorConnect: $('sensorConnect'),
+        sensorCalibrate: $('sensorCalibrate'),
+        sensorEnabled: $('sensorEnabled'),
+        sensorStatus: $('sensorStatus'),
+        sensorValues: $('sensorValues')
+      };
+
+      const hud = document.querySelector('.hud');
+      const hudToggle = document.getElementById('hudToggle');
+      let hudCollapsed = false;
+
+      hudToggle.onclick = () => {
+        hudCollapsed = !hudCollapsed;
+        hud.classList.toggle('collapsed', hudCollapsed);
+        hudToggle.textContent = hudCollapsed ? '+' : '−';
+      };
+
+      const webcamVideo = document.getElementById('webcamVideo');
+      const videoTexture = gl.createTexture();
+      const videoFrameBuffer = gl.createBuffer();
+      const videoQuadBuffer = gl.createBuffer();
+      let videoQuadData = new Float32Array(16);
+      let videoFrameData = new Float32Array(16);
+
+      function makeScreenQuad(leftPx, topPx, widthPx, heightPx) {
+        const x0 = (leftPx / canvas.width) * 2 - 1;
+        const x1 = ((leftPx + widthPx) / canvas.width) * 2 - 1;
+        const y0 = 1 - ((topPx + heightPx) / canvas.height) * 2;
+        const y1 = 1 - (topPx / canvas.height) * 2;
+
+        return new Float32Array([
+          x0, y0, 0, 0,
+          x1, y0, 1, 0,
+          x0, y1, 0, 1,
+          x1, y1, 1, 1
+        ]);
+      }
+
+      function updateWebcamQuads() {
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
+        const margin = 16 * dpr;
+        const width = Math.min(canvas.width * 0.24, 260 * dpr);
+        const height = width * 0.75;
+        const left = canvas.width - width - margin;
+        const top = margin;
+        const frame = 3 * dpr;
+
+        videoFrameData = makeScreenQuad(
+          left - frame,
+          top - frame,
+          width + frame * 2,
+          height + frame * 2
+        );
+        videoQuadData = makeScreenQuad(left, top, width, height);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, videoFrameBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, videoFrameData, gl.DYNAMIC_DRAW);
+        gl.bindBuffer(gl.ARRAY_BUFFER, videoQuadBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, videoQuadData, gl.DYNAMIC_DRAW);
+      }
+
+      gl.bindTexture(gl.TEXTURE_2D, videoTexture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        gl.RGBA,
+        1,
+        1,
+        0,
+        gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        new Uint8Array([225, 238, 245, 255])
+      );
+
+      updateWebcamQuads();
+
+      let webcamReady = false;
+      let webcamStream = null;
+
+      function updateStereoControlLabels() {
+        ui.eyeSep_v.textContent = (+ui.eyeSep.value).toFixed(3);
+        ui.fov_v.textContent = `${(+ui.fov.value).toFixed(0)} deg`;
+        ui.nearClip_v.textContent = (+ui.nearClip.value).toFixed(2);
+        ui.convergence_v.textContent = (+ui.convergence.value).toFixed(2);
+      }
+
+      updateStereoControlLabels();
+      ui.eyeSep.oninput = updateStereoControlLabels;
+      ui.fov.oninput = updateStereoControlLabels;
+      ui.nearClip.oninput = updateStereoControlLabels;
+      ui.convergence.oninput = updateStereoControlLabels;
+
+      const sensorState = {
+        ws: null,
+        connected: false,
+        q: [1, 0, 0, 0],
+        matrix: scaleMat(1),
+        calibrationInv: scaleMat(1),
+        lastTime: 0,
+        lastPacketTime: 0,
+        gyro: [0, 0, 0]
+      };
+
+      function updateSensorStatus(text) {
+        ui.sensorStatus.textContent = `sensor: ${text}`;
+      }
+
+      function updateSensorMatrix() {
+        sensorState.matrix = mulMat4(
+          sensorState.calibrationInv,
+          matrixFromQuat(sensorState.q)
+        );
+      }
+
+      function calibrateSensor() {
+        sensorState.calibrationInv = transposeRotationMat4(matrixFromQuat(sensorState.q));
+        updateSensorMatrix();
+        updateSensorStatus(sensorState.connected ? 'calibrated' : 'calibrated, waiting');
+      }
+
+      function connectSensor() {
+        if (sensorState.ws) {
+          sensorState.ws.close();
+          sensorState.ws = null;
+        }
+
+        updateSensorStatus('connecting');
+        const ws = new WebSocket(ui.sensorUrl.value.trim() || 'ws://localhost:8080');
+        sensorState.ws = ws;
+
+        ws.onopen = () => {
+          sensorState.connected = true;
+          ui.sensorConnect.textContent = 'disconnect';
+          updateSensorStatus('connected');
+        };
+
+        ws.onclose = () => {
+          sensorState.connected = false;
+          if (sensorState.ws === ws) sensorState.ws = null;
+          ui.sensorConnect.textContent = 'connect';
+          updateSensorStatus('disconnected');
+        };
+
+        ws.onerror = () => updateSensorStatus('connection error');
+
+        ws.onmessage = event => {
+          let packet;
+          try {
+            packet = JSON.parse(event.data);
+          } catch (_) {
+            return;
+          }
+
+          const now = performance.now();
+          const packetTime = Number.isFinite(packet.timestamp)
+            ? packet.timestamp
+            : now;
+          const dt = Math.min(
+            0.08,
+            Math.max(
+              0.001,
+              (packetTime - (sensorState.lastTime || packetTime - 20)) / 1000
+            )
+          );
+          sensorState.lastTime = packetTime;
+          sensorState.lastPacketTime = now;
+
+          if (packet.quaternion) {
+            const q = packet.quaternion;
+            sensorState.q = normalizeQuat([
+              q.w ?? q[0] ?? 1,
+              q.x ?? q[1] ?? 0,
+              q.y ?? q[2] ?? 0,
+              q.z ?? q[3] ?? 0
+            ]);
+          } else if (packet.attitude) {
+            const a = packet.attitude;
+            sensorState.q = quatFromEuler(
+              Number(a.roll ?? a.x ?? 0),
+              Number(a.pitch ?? a.y ?? 0),
+              Number(a.yaw ?? a.z ?? 0)
+            );
+          } else if (packet.gyro) {
+            const g = packet.gyro;
+            const gx = Number(g.x ?? g[0] ?? 0);
+            const gy = Number(g.y ?? g[1] ?? 0);
+            const gz = Number(g.z ?? g[2] ?? 0);
+            sensorState.gyro = [gx, gy, gz];
+            sensorState.q = normalizeQuat(
+              multiplyQuat(sensorState.q, deltaQuatFromGyro(gx, gy, gz, dt))
+            );
+          }
+
+          updateSensorMatrix();
+          ui.sensorValues.textContent =
+            `gyro rad/s: ${sensorState.gyro.map(v => v.toFixed(2)).join(', ')}`;
+        };
+      }
+
+      ui.sensorConnect.onclick = () => {
+        if (sensorState.ws) {
+          sensorState.ws.close();
+        } else {
+          connectSensor();
+        }
+      };
+
+      ui.sensorCalibrate.onclick = calibrateSensor;
+
+      async function startWebcam() {
+        try {
+          webcamStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false
+          });
+          webcamVideo.srcObject = webcamStream;
+          await webcamVideo.play();
+          webcamReady = true;
+          ui.webcamStatus.textContent = 'zero parallax plane: on';
+          ui.webcamToggle.textContent = 'stop camera';
+        } catch (err) {
+          webcamReady = false;
+          ui.webcamStatus.textContent = 'camera blocked or unavailable';
+          console.warn(err);
+        }
+      }
+
+      function stopWebcam() {
+        if (webcamStream) {
+          for (const track of webcamStream.getTracks()) track.stop();
+        }
+        webcamStream = null;
+        webcamVideo.srcObject = null;
+        webcamReady = false;
+        ui.webcamStatus.textContent = 'zero parallax plane: off';
+        ui.webcamToggle.textContent = 'start camera';
+      }
+
+      ui.webcamToggle.onclick = () => {
+        if (webcamReady) stopWebcam();
+        else startWebcam();
+      };
+
+      function drawWebcamPlane() {
+        updateWebcamQuads();
+
+        if (webcamReady && webcamVideo.readyState >= 2) {
+          gl.bindTexture(gl.TEXTURE_2D, videoTexture);
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+          gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGBA,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            webcamVideo
+          );
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+        }
+
+        gl.disable(gl.DEPTH_TEST);
+
+        gl.useProgram(progColor);
+        gl.uniformMatrix4fv(locC.u_proj, false, new Float32Array([
+          1, 0, 0, 0,
+          0, 1, 0, 0,
+          0, 0, 1, 0,
+          0, 0, 0, 1
+        ]));
+        gl.uniformMatrix4fv(locC.u_view, false, new Float32Array([
+          1, 0, 0, 0,
+          0, 1, 0, 0,
+          0, 0, 1, 0,
+          0, 0, 0, 1
+        ]));
+        gl.uniformMatrix4fv(locC.u_model, false, new Float32Array([
+          1, 0, 0, 0,
+          0, 1, 0, 0,
+          0, 0, 1, 0,
+          0, 0, 0, 1
+        ]));
+        gl.uniform1i(locC.u_useFloor, false);
+        gl.uniform1i(locC.u_isPoint, false);
+        gl.uniform4f(locC.u_rgba, 0.78, 0.86, 0.9, 1.0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, videoFrameBuffer);
+        gl.enableVertexAttribArray(locC.a_pos);
+        gl.vertexAttribPointer(locC.a_pos, 2, gl.FLOAT, false, 16, 0);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+        gl.useProgram(progVideo);
+        gl.activeTexture(gl.TEXTURE3);
+        gl.bindTexture(gl.TEXTURE_2D, videoTexture);
+        gl.uniform1i(locV.u_video, 3);
+        gl.uniform1i(locV.u_ready, webcamReady ? 1 : 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, videoQuadBuffer);
+        gl.enableVertexAttribArray(locV.a_pos);
+        gl.vertexAttribPointer(locV.a_pos, 2, gl.FLOAT, false, 16, 0);
+        gl.enableVertexAttribArray(locV.a_uv);
+        gl.vertexAttribPointer(locV.a_uv, 2, gl.FLOAT, false, 16, 8);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        gl.enable(gl.DEPTH_TEST);
+      }
+
+      ui.reset.onclick = () => {
+        camYaw = 0.8;
+        camPitch = -0.25;
+        dist = 3.8;
+        objYaw = 0.0;
+        objPitch = 0.0;
+      };
+
+      canvas.addEventListener('mousedown', e => {
+        dragging = true;
+        lx = e.clientX;
+        ly = e.clientY;
+      });
+
+      addEventListener('mouseup', () => (dragging = false));
+
+      addEventListener('mousemove', e => {
+        if (!dragging) return;
+        const dx = (e.clientX - lx) / canvas.clientHeight * 2 * Math.PI;
+        const dy = (e.clientY - ly) / canvas.clientHeight * 2 * Math.PI;
+        lx = e.clientX;
+        ly = e.clientY;
+
+        objYaw += dx;
+        objPitch = Math.max(-1.3, Math.min(1.3, objPitch + dy));
+      });
+
+      canvas.addEventListener(
+        'wheel',
+        e => {
+          e.preventDefault();
+          dist = Math.max(
+            2,
+            Math.min(9, dist * Math.exp(-Math.sign(e.deltaY) * 0.2))
+          );
+        },
+        { passive: false }
+      );
+
+      function rOfZ(z, k) {
+        const v = k * (1.0 - z) * z * z;
+        return v > 0 ? Math.sqrt(v) : 0;
+      }
+
+      const smoothZ = (i, segV) => {
+        const t = i / segV;
+        const e = t * t * (3 - 2 * t);
+        return -1 + 2 * e;
+      };
+
+      const linearZ = (i, segV) => -1 + 2 * (i / segV);
+
+      // Дані сітки ding-dong
+      const model = {
+        segU: +ui.segU.value,
+        segV: +ui.segV.value,
+        k: +ui.inflate.value,
+        vbo: null,
+        nbo: null,
+        uvbo: null,
+        ebo: null,
+        ibCount: 0,
+        wireU: [],
+        wireV: []
+      };
+
+      // Сфера-джерело світла
+      const lightSphere = {
+        vbo: null,
+        nbo: null,
+        ebo: null,
+        ibCount: 0
+      };
+
+      // Текстури — завантаження та набори
+      function loadTexture(url, fallbackRGBA) {
+        const tex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+
+        const c = fallbackRGBA || [255, 255, 255, 255];
+        gl.texImage2D(
+          gl.TEXTURE_2D,
+          0,
+          gl.RGBA,
+          1,
+          1,
+          0,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          new Uint8Array(c)
+        );
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+
+        const img = new Image();
+        img.src = url;
+        img.onload = () => {
+          console.log('Texture loaded:', url, img.width, 'x', img.height);
+          gl.bindTexture(gl.TEXTURE_2D, tex);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+          gl.generateMipmap(gl.TEXTURE_2D);
+        };
+        img.onerror = () => {
+          console.error('Failed to load texture:', url);
+        };
+
+        return tex;
+      }
+
+      let texDiffuse = null;
+      let texSpecular = null;
+      let texNormal = null;
+
+      const textureSets = [
+        {
+          name: 'Default',
+          diffuse: 'textures/set1_diffuse.png',
+          specular: 'textures/set1_specular.png',
+          normal: 'textures/set1_normal.png'
+        },
+        {
+          name: 'Metal / Scratches',
+          diffuse: 'textures/set2_diffuse.png',
+          specular: 'textures/set2_specular.png',
+          normal: 'textures/set2_normal.png'
+        },
+        {
+          name: 'Stone',
+          diffuse: 'textures/set3_diffuse.png',
+          specular: 'textures/set3_specular.png',
+          normal: 'textures/set3_normal.png'
+        }
+      ];
+
+      function applyTextureSet(index) {
+        const set = textureSets[index] || textureSets[0];
+
+        texDiffuse = loadTexture(set.diffuse, [255, 255, 255, 255]);
+        texSpecular = loadTexture(set.specular, [255, 255, 255, 255]);
+        texNormal = loadTexture(set.normal, [128, 128, 255, 255]);
+      }
+
+      applyTextureSet(0);
+
+      ui.texSet.addEventListener('change', () => {
+        const idx = parseInt(ui.texSet.value, 10) || 0;
+        applyTextureSet(idx);
+      });
+
+      // ргр: стан pivot та параметрів трансформації текстури:
+      //     texPivot.u / texPivot.v — зсув точки повороту в UV,
+      //     texScale — масштабування UV,
+      //     texAngle — кут повороту (в радіанах).
+      let texPivot = { u: 0.0, v: 0.0 };
+      let texScale = 1.0;
+      let texAngle = 0.0; // radians
+
+      // VBO + EBO + UV
+      function buildModel() {
+        const segU = model.segU | 0;
+        const segV = model.segV | 0;
+        const k = +ui.inflate.value;
+        model.k = k;
+
+        const vertCount = (segU + 1) * (segV + 1);
+
+        const V = new Float32Array(vertCount * 3);
+        const N = new Float32Array(vertCount * 3);
+        const UV = new Float32Array(vertCount * 2);
+
+        let p = 0;
+        let qUV = 0;
+        for (let j = 0; j <= segV; j++) {
+          const z = (ui.easeZ.checked ? smoothZ : linearZ)(j, segV);
+          const r = rOfZ(z, k);
+          const v = j / segV;
+          for (let i = 0; i <= segU; i++) {
+            const th = (2 * Math.PI * i) / segU;
+            const u = i / segU;
+
+            const x = r * Math.cos(th);
+            const y = r * Math.sin(th);
+
+            V[p++] = x;
+            V[p++] = y;
+            V[p++] = z;
+
+            // ргр: базова UV-розгортка (reuse mapping) — u вздовж θ, v вздовж z,
+            //     далі вона використовується у шейдері для масштабування/повороту.
+            UV[qUV++] = u;
+            UV[qUV++] = v;
+          }
+        }
+
+        const idx = new Uint32Array(segU * segV * 6);
+        let q = 0;
+        for (let j = 0; j < segV; j++) {
+          for (let i = 0; i < segU; i++) {
+            const a = j * (segU + 1) + i;
+            const b = a + 1;
+            const c = a + (segU + 1);
+            const d = c + 1;
+            idx[q++] = a;
+            idx[q++] = c;
+            idx[q++] = b;
+            idx[q++] = b;
+            idx[q++] = c;
+            idx[q++] = d;
+          }
+        }
+
+        function analyticNormalAt(x, y, z, k) {
+          let nx = 2.0 * x;
+          let ny = 2.0 * y;
+          let nz = k * (3.0 * z * z - 2.0 * z);
+          const len = Math.hypot(nx, ny, nz);
+          if (len > 1e-6) {
+            nx /= len;
+            ny /= len;
+            nz /= len;
+          } else {
+            nx = 0.0;
+            ny = 0.0;
+            nz = 1.0;
+          }
+          return [nx, ny, nz];
+        }
+
+        function addFaceNormal(i0, i1, i2) {
+          const v0 = i0 * 3;
+          const v1 = i1 * 3;
+          const v2 = i2 * 3;
+
+          const x0 = V[v0];
+          const y0 = V[v0 + 1];
+          const z0 = V[v0 + 2];
+
+          const x1 = V[v1];
+          const y1 = V[v1 + 1];
+          const z1 = V[v1 + 2];
+
+          const x2 = V[v2];
+          const y2 = V[v2 + 1];
+          const z2 = V[v2 + 2];
+
+          const ux = x1 - x0;
+          const uy = y1 - y0;
+          const uz = z1 - z0;
+
+          const vx = x2 - x0;
+          const vy = y2 - y0;
+          const vz = z2 - z0;
+
+          let nx = uy * vz - uz * vy;
+          let ny = uz * vx - ux * vz;
+          let nz = ux * vy - uy * vx;
+
+          const cx = (x0 + x1 + x2) / 3.0;
+          const cy = (y0 + y1 + y2) / 3.0;
+          const cz = (z0 + z1 + z2) / 3.0;
+
+          const ag = analyticNormalAt(cx, cy, cz, k);
+          const agx = ag[0];
+          const agy = ag[1];
+          const agz = ag[2];
+
+          if (nx * agx + ny * agy + nz * agz < 0.0) {
+            nx = -nx;
+            ny = -ny;
+            nz = -nz;
+          }
+
+          const len = Math.hypot(nx, ny, nz);
+          if (len > 1e-6) {
+            nx /= len;
+            ny /= len;
+            nz /= len;
+          } else {
+            nx = 0.0;
+            ny = 0.0;
+            nz = 1.0;
+          }
+
+          N[v0]     += nx;
+          N[v0 + 1] += ny;
+          N[v0 + 2] += nz;
+
+          N[v1]     += nx;
+          N[v1 + 1] += ny;
+          N[v1 + 2] += nz;
+
+          N[v2]     += nx;
+          N[v2 + 1] += ny;
+          N[v2 + 2] += nz;
+        }
+
+        for (let t = 0; t < idx.length; t += 3) {
+          const i0 = idx[t];
+          const i1 = idx[t + 1];
+          const i2 = idx[t + 2];
+          addFaceNormal(i0, i1, i2);
+        }
+
+        for (let v = 0; v < N.length; v += 3) {
+          let nx = N[v];
+          let ny = N[v + 1];
+          let nz = N[v + 2];
+          const len = Math.hypot(nx, ny, nz);
+          if (len > 1e-6) {
+            N[v]     = nx / len;
+            N[v + 1] = ny / len;
+            N[v + 2] = nz / len;
+          } else {
+            N[v]     = 0.0;
+            N[v + 1] = 0.0;
+            N[v + 2] = 1.0;
+          }
+        }
+
+        if (!model.vbo) model.vbo = gl.createBuffer();
+        if (!model.nbo) model.nbo = gl.createBuffer();
+        if (!model.uvbo) model.uvbo = gl.createBuffer();
+        if (!model.ebo) model.ebo = gl.createBuffer();
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, model.vbo);
+        gl.bufferData(gl.ARRAY_BUFFER, V, gl.DYNAMIC_DRAW);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, model.nbo);
+        gl.bufferData(gl.ARRAY_BUFFER, N, gl.DYNAMIC_DRAW);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, model.uvbo);
+        gl.bufferData(gl.ARRAY_BUFFER, UV, gl.DYNAMIC_DRAW);
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, model.ebo);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.DYNAMIC_DRAW);
+
+        model.ibCount = idx.length;
+
+        const makeList = (n, makeArray) => {
+          const list = [];
+          for (let k = 0; k < n; k++) {
+            const b = gl.createBuffer();
+            const data = makeArray(k);
+            gl.bindBuffer(gl.ARRAY_BUFFER, b);
+            gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+            list.push({ buf: b, count: data.length / 3 });
+          }
+          return list;
+        };
+
+        model.wireU = makeList(segU, uii => {
+          const a = (2 * Math.PI * uii) / segU;
+          const ca = Math.cos(a);
+          const sa = Math.sin(a);
+          const arr = new Float32Array((segV + 1) * 3);
+          let t = 0;
+          for (let j = 0; j <= segV; j++) {
+            const z = (ui.easeZ.checked ? smoothZ : linearZ)(j, segV);
+            const r = rOfZ(z, k);
+            arr[t++] = r * ca;
+            arr[t++] = r * sa;
+            arr[t++] = z;
+          }
+          return arr;
+        });
+
+        model.wireV = makeList(segV + 1, vj => {
+          const z = (ui.easeZ.checked ? smoothZ : linearZ)(vj, segV);
+          const r = rOfZ(z, k);
+          const arr = new Float32Array((segU + 1) * 3);
+          let t = 0;
+          for (let i = 0; i <= segU; i++) {
+            const th = (2 * Math.PI * i) / segU;
+            arr[t++] = r * Math.cos(th);
+            arr[t++] = r * Math.sin(th);
+            arr[t++] = z;
+          }
+          return arr;
+        });
+
+        ui.statSeg.textContent = `segU×segV: ${segU}×${segV}`;
+        ui.statVerts.textContent = `grid verts: ${vertCount}`;
+      }
+
+      // Сфера світла
+      function buildLightSphere() {
+        const segU = 24;
+        const segV = 16;
+        const radius = 0.18;
+
+        const V = new Float32Array((segU + 1) * (segV + 1) * 3);
+        const N = new Float32Array(V.length);
+
+        let p = 0;
+        for (let j = 0; j <= segV; j++) {
+          const v = (Math.PI * j) / segV;
+          const y = Math.cos(v);
+          const r = Math.sin(v);
+          for (let i = 0; i <= segU; i++) {
+            const u = (2 * Math.PI * i) / segU;
+            const x = r * Math.cos(u);
+            const z = r * Math.sin(u);
+
+            V[p] = x * radius;
+            N[p++] = x;
+
+            V[p] = y * radius;
+            N[p++] = y;
+
+            V[p] = z * radius;
+            N[p++] = z;
+          }
+        }
+
+        const idx = new Uint32Array(segU * segV * 6);
+        let q = 0;
+        for (let j = 0; j < segV; j++) {
+          for (let i = 0; i < segU; i++) {
+            const a = j * (segU + 1) + i;
+            const b = a + 1;
+            const c = a + (segU + 1);
+            const d = c + 1;
+            idx[q++] = a;
+            idx[q++] = c;
+            idx[q++] = b;
+            idx[q++] = b;
+            idx[q++] = c;
+            idx[q++] = d;
+          }
+        }
+
+        if (!lightSphere.vbo) lightSphere.vbo = gl.createBuffer();
+        if (!lightSphere.nbo) lightSphere.nbo = gl.createBuffer();
+        if (!lightSphere.ebo) lightSphere.ebo = gl.createBuffer();
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, lightSphere.vbo);
+        gl.bufferData(gl.ARRAY_BUFFER, V, gl.STATIC_DRAW);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, lightSphere.nbo);
+        gl.bufferData(gl.ARRAY_BUFFER, N, gl.STATIC_DRAW);
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, lightSphere.ebo);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+
+        lightSphere.ibCount = idx.length;
+      }
+
+      // Light
+      let t = 0;
+      let lightPos = [3.0, 0.0, 1.2];
+      const moveSpeed = 0.4;
+
+      // ргр: обробник клавіш A/W/S/D.
+      //      У режимі Manual — рухаємо джерело світла.
+      //      У режимах auto_* — рухаємо pivot у UV (u_texPivot) по (u,v)-простору.
+      addEventListener('keydown', e => {
+        const code = e.code;
+        const mode = ui.lightMode.value;
+
+        if (mode === 'manual') {
+          const { right, up } = getCameraBasis();
+          let moved = false;
+
+          if (code === 'KeyW') {
+            lightPos[0] += up[0] * moveSpeed;
+            lightPos[1] += up[1] * moveSpeed;
+            lightPos[2] += up[2] * moveSpeed;
+            moved = true;
+          } else if (code === 'KeyS') {
+            lightPos[0] -= up[0] * moveSpeed;
+            lightPos[1] -= up[1] * moveSpeed;
+            lightPos[2] -= up[2] * moveSpeed;
+            moved = true;
+          } else if (code === 'KeyA') {
+            lightPos[0] -= right[0] * moveSpeed;
+            lightPos[1] -= right[1] * moveSpeed;
+            lightPos[2] -= right[2] * moveSpeed;
+            moved = true;
+          } else if (code === 'KeyD') {
+            lightPos[0] += right[0] * moveSpeed;
+            lightPos[1] += right[1] * moveSpeed;
+            lightPos[2] += right[2] * moveSpeed;
+            moved = true;
+          }
+
+          if (moved) {
+            const Rmax = 6.0;
+            const r = Math.hypot(lightPos[0], lightPos[1], lightPos[2]);
+            if (r > Rmax) {
+              lightPos[0] *= Rmax / r;
+              lightPos[1] *= Rmax / r;
+              lightPos[2] *= Rmax / r;
+            }
+          }
+          return;
+        }
+
+        // ргр: у режимах auto_* клавіші A/W/S/D рухають зсув текстури (u_texPivot).
+        //      Це реалізує вимогу "It has to be possible to move the point along the surface (u,v)".
+        const step = 0.02;
+        let changed = false;
+
+        if (code === 'KeyA') {
+          texPivot.u -= step;   // вліво по u
+          changed = true;
+        } else if (code === 'KeyD') {
+          texPivot.u += step;   // вправо по u
+          changed = true;
+        } else if (code === 'KeyW') {
+          texPivot.v += step;   // вгору по v
+          changed = true;
+        } else if (code === 'KeyS') {
+          texPivot.v -= step;   // вниз по v
+          changed = true;
+        }
+
+        if (changed) {
+          // трохи обмежуємо діапазон для зручності
+          texPivot.u = Math.max(-1.0, Math.min(1.0, texPivot.u));
+          texPivot.v = Math.max(-1.0, Math.min(1.0, texPivot.v));
+
+          if (ui.texPivotStat) {
+            ui.texPivotStat.textContent =
+              `Tex pivot (u, v): (${texPivot.u.toFixed(2)}, ${texPivot.v.toFixed(2)})`;
+          }
+
+          e.preventDefault();
+        }
+      });
+
+      function syncAndRebuild() {
+        model.segU = +ui.segU.value;
+        ui.segU_v.textContent = model.segU;
+
+        model.segV = +ui.segV.value;
+        ui.segV_v.textContent = model.segV;
+
+        ui.scale_v.textContent = (+ui.scale.value).toFixed(2) + '×';
+        ui.inflate_v.textContent = 'k = ' + (+ui.inflate.value).toFixed(2);
+
+        buildModel();
+      }
+
+      ui.segU.oninput = syncAndRebuild;
+      ui.segV.oninput = syncAndRebuild;
+      ui.inflate.oninput = syncAndRebuild;
+      ui.easeZ.onchange = syncAndRebuild;
+
+      ui.scale.oninput = () => {
+        ui.scale_v.textContent = (+ui.scale.value).toFixed(2) + '×';
+      };
+
+      // ргр: обробник слайдера масштабування текстури — оновлюємо texScale і текст у HUD.
+      ui.texScale.oninput = () => {
+        texScale = +ui.texScale.value;
+        ui.texScale_v.textContent = texScale.toFixed(2) + '×';
+      };
+
+      // ргр: обробник слайдера повороту — переводимо градуси в радіани й зберігаємо в texAngle.
+      ui.texRot.oninput = () => {
+        const deg = +ui.texRot.value;
+        ui.texRot_v.textContent = `${deg.toFixed(0)}°`;
+        texAngle = deg * Math.PI / 180.0;
+      };
+
+      // MAIN DRAW LOOP
+      function drawScenePass(proj, view, eye, updateLight) {
+        const scaleVal = +ui.scale.value;
+        let modelMat = scaleMat(scaleVal);
+        const rotY = rotateY(objYaw);
+        const rotX = rotateX(objPitch);
+        modelMat = mulMat4(rotY, mulMat4(rotX, modelMat));
+        if (ui.sensorEnabled.checked) {
+          modelMat = mulMat4(sensorState.matrix, modelMat);
+        }
+
+        const { right, up } = getCameraBasis();
+        const lightMode = ui.lightMode.value;
+
+        if (updateLight && (lightMode === 'auto_world' || lightMode === 'auto_view')) {
+          t += 0.02;
+          const R = 3.0;
+          const hz = 1.0;
+
+          if (lightMode === 'auto_world') {
+            const x = R * Math.cos(t);
+            const y = R * Math.sin(t);
+            const z = hz;
+            lightPos = [x, y, z];
+          } else {
+            const c = Math.cos(t);
+            const s = Math.sin(t);
+            const x = R * (c * right[0] + s * up[0]);
+            const y = R * (c * right[1] + s * up[1]);
+            const z = hz;
+            lightPos = [x, y, z];
+          }
+        }
+
+        // заполненная поверхность с Phong + текстурами + normal map
+        if (ui.fillTris.checked) {
+          gl.useProgram(progPhong);
+          gl.uniformMatrix4fv(locP.u_proj, false, proj);
+          gl.uniformMatrix4fv(locP.u_view, false, view);
+          gl.uniformMatrix4fv(locP.u_model, false, modelMat);
+          gl.uniform3fv(locP.u_lightPos, new Float32Array(lightPos));
+          gl.uniform3fv(locP.u_eyePos, new Float32Array(eye));
+          gl.uniform3fv(locP.u_baseColor, new Float32Array([1.0, 1.0, 1.0]));
+          gl.uniform1f(locP.u_specPow, +ui.specPow.value);
+          gl.uniform1i(locP.u_material, +ui.material.value);
+
+          // ргр: передаємо у шейдер поточні параметри трансформації текстури:
+          //     зсув pivot (u_texPivot), масштаб (u_texScale) і кут (u_texAngle).
+          gl.uniform2f(locP.u_texPivot, texPivot.u, texPivot.v);
+          gl.uniform1f(locP.u_texScale, texScale);
+          gl.uniform1f(locP.u_texAngle, texAngle);
+
+          // текстури
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, texDiffuse);
+          gl.uniform1i(locP.u_diffuseTex, 0);
+
+          gl.activeTexture(gl.TEXTURE1);
+          gl.bindTexture(gl.TEXTURE_2D, texSpecular);
+          gl.uniform1i(locP.u_specularTex, 1);
+
+          gl.activeTexture(gl.TEXTURE2);
+          gl.bindTexture(gl.TEXTURE_2D, texNormal);
+          gl.uniform1i(locP.u_normalTex, 2);
+
+          gl.uniform1i(locP.u_useDiffuseTex, ui.useDiffuseTex.checked ? 1 : 0);
+          gl.uniform1i(locP.u_useSpecularTex, ui.useSpecularTex.checked ? 1 : 0);
+          gl.uniform1i(locP.u_useNormalTex, ui.useNormalTex.checked ? 1 : 0);
+
+          gl.bindBuffer(gl.ARRAY_BUFFER, model.vbo);
+          gl.enableVertexAttribArray(locP.a_pos);
+          gl.vertexAttribPointer(locP.a_pos, 3, gl.FLOAT, false, 0, 0);
+
+          gl.bindBuffer(gl.ARRAY_BUFFER, model.nbo);
+          gl.enableVertexAttribArray(locP.a_norm);
+          gl.vertexAttribPointer(locP.a_norm, 3, gl.FLOAT, false, 0, 0);
+
+          gl.bindBuffer(gl.ARRAY_BUFFER, model.uvbo);
+          gl.enableVertexAttribArray(locP.a_uv);
+          gl.vertexAttribPointer(locP.a_uv, 2, gl.FLOAT, false, 0, 0);
+
+          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, model.ebo);
+          gl.drawElements(gl.TRIANGLES, model.ibCount, gl.UNSIGNED_INT, 0);
+        }
+
+        // Light sphere
+        gl.useProgram(progPhong);
+        gl.uniformMatrix4fv(locP.u_proj, false, proj);
+        gl.uniformMatrix4fv(locP.u_view, false, view);
+
+        const lightModel = translateMat(lightPos[0], lightPos[1], lightPos[2]);
+        gl.uniformMatrix4fv(locP.u_model, false, lightModel);
+        gl.uniform3fv(locP.u_lightPos, new Float32Array(lightPos));
+        gl.uniform3fv(locP.u_eyePos, new Float32Array(eye));
+        gl.uniform3fv(
+          locP.u_baseColor,
+          new Float32Array([1.0, 0.95, 0.2])
+        );
+        gl.uniform1f(locP.u_specPow, 64.0);
+        gl.uniform1i(locP.u_material, 2);
+        gl.uniform1i(locP.u_useDiffuseTex, 0);
+        gl.uniform1i(locP.u_useSpecularTex, 0);
+        gl.uniform1i(locP.u_useNormalTex, 0);
+        gl.uniform2f(locP.u_texPivot, 0.0, 0.0);
+        gl.uniform1f(locP.u_texScale, 1.0);
+        gl.uniform1f(locP.u_texAngle, 0.0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, lightSphere.vbo);
+        gl.enableVertexAttribArray(locP.a_pos);
+        gl.vertexAttribPointer(locP.a_pos, 3, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, lightSphere.nbo);
+        gl.enableVertexAttribArray(locP.a_norm);
+        gl.vertexAttribPointer(locP.a_norm, 3, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, lightSphere.ebo);
+        gl.drawElements(gl.TRIANGLES, lightSphere.ibCount, gl.UNSIGNED_INT, 0);
+
+        // Shadow on floor
+        gl.useProgram(progColor);
+        gl.uniformMatrix4fv(locC.u_proj, false, proj);
+        gl.uniformMatrix4fv(locC.u_view, false, view);
+        gl.uniformMatrix4fv(locC.u_model, false, modelMat);
+
+        if (ui.showShadow.checked && lightMode !== 'auto_view') {
+          gl.uniform1i(locC.u_useFloor, true);
+          gl.uniform1f(locC.u_floorZ, -1.0);
+          gl.uniform1i(locC.u_isPoint, false);
+          gl.uniform4f(locC.u_rgba, 0.75, 0.78, 0.82, 0.35);
+          gl.uniform3fv(locC.u_lightPos, new Float32Array(lightPos));
+
+          gl.enableVertexAttribArray(locC.a_pos);
+
+          for (const L of model.wireV) {
+            gl.bindBuffer(gl.ARRAY_BUFFER, L.buf);
+            gl.vertexAttribPointer(locC.a_pos, 3, gl.FLOAT, false, 0, 0);
+            gl.drawArrays(gl.LINE_STRIP, 0, L.count);
+          }
+
+          for (const L of model.wireU) {
+            gl.bindBuffer(gl.ARRAY_BUFFER, L.buf);
+            gl.vertexAttribPointer(locC.a_pos, 3, gl.FLOAT, false, 0, 0);
+            gl.drawArrays(gl.LINE_STRIP, 0, L.count);
+          }
+
+          gl.uniform1i(locC.u_useFloor, false);
+        }
+
+        // Wireframe + points
+        if (ui.showWire.checked || ui.showPoints.checked) {
+          const drawSet = (list, rgbaLine, rgbaPt) => {
+            for (const L of list) {
+              gl.bindBuffer(gl.ARRAY_BUFFER, L.buf);
+              gl.vertexAttribPointer(locC.a_pos, 3, gl.FLOAT, false, 0, 0);
+              gl.enableVertexAttribArray(locC.a_pos);
+
+              if (ui.showWire.checked) {
+                gl.uniform1i(locC.u_isPoint, false);
+                gl.uniform4f(
+                  locC.u_rgba,
+                  rgbaLine[0],
+                  rgbaLine[1],
+                  rgbaLine[2],
+                  1.0
+                );
+                gl.drawArrays(gl.LINE_STRIP, 0, L.count);
+
+                gl.uniform1i(locC.u_isPoint, true);
+                gl.uniform1f(
+                  locC.u_pointSize,
+                  Math.max(1, +ui.ptSize.value) * 2.0
+                );
+                gl.uniform4f(
+                  locC.u_rgba,
+                  rgbaLine[0],
+                  rgbaLine[1],
+                  rgbaLine[2],
+                  1.0
+                );
+                gl.drawArrays(gl.POINTS, 0, L.count);
+              }
+
+              if (ui.showPoints.checked) {
+                gl.uniform1i(locC.u_isPoint, true);
+                gl.uniform1f(
+                  locC.u_pointSize,
+                  Math.max(1, +ui.ptSize.value) * 2.6
+                );
+                gl.uniform4f(
+                  locC.u_rgba,
+                  rgbaPt[0],
+                  rgbaPt[1],
+                  rgbaPt[2],
+                  rgbaPt[3]
+                );
+                gl.drawArrays(gl.POINTS, 0, L.count);
+              }
+            }
+          };
+
+          drawSet(model.wireV, [1.0, 0.52, 0.18], [1.0, 0.35, 0.05, 0.9]);
+          drawSet(model.wireU, [0.12, 0.46, 0.98], [0.06, 0.30, 0.90, 0.9]);
+        }
+      }
+
+      function draw() {
+        resize();
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        gl.colorMask(true, true, true, true);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        const aspect = canvas.width / canvas.height;
+        const nearClip = Math.max(0.01, +ui.nearClip.value);
+        const convergence = Math.max(nearClip + 0.1, +ui.convergence.value);
+        const cam = new StereoCamera(
+          convergence,
+          +ui.eyeSep.value,
+          aspect,
+          +ui.fov.value,
+          nearClip,
+          50
+        );
+
+        const baseView = viewMat();
+        const { eye } = getCameraBasis();
+        const left = cam.applyLeftFrustum(baseView);
+
+        gl.colorMask(true, false, false, true);
+        drawWebcamPlane();
+        gl.clear(gl.DEPTH_BUFFER_BIT);
+        drawScenePass(left.proj, left.view, eye, true);
+
+        gl.clear(gl.DEPTH_BUFFER_BIT);
+
+        const right = cam.applyRightFrustum(baseView);
+        gl.colorMask(false, true, true, true);
+        drawWebcamPlane();
+        gl.clear(gl.DEPTH_BUFFER_BIT);
+        drawScenePass(right.proj, right.view, eye, false);
+
+        gl.colorMask(true, true, true, true);
+
+        requestAnimationFrame(draw);
+      }
+
+      buildModel();
+      buildLightSphere();
+      draw();
+    })();
+  </script>
+</body>
+</html>
