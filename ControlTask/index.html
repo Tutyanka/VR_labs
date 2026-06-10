@@ -3,180 +3,146 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>ControlTask AR Ding-dong</title>
-  <meta
-    name="description"
-    content="AR.js marker-based augmentation for the Ding-dong surface used in the previous practical assignment."
-  />
+  <title>ControlTask AR</title>
   <style>
-    :root {
-      --paper: rgba(244, 239, 229, 0.92);
-      --ink: #152735;
-      --accent: #d28d22;
-      --edge: rgba(21, 39, 53, 0.14);
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { width: 100%; height: 100%; font-family: sans-serif; background: #09131b; overflow: hidden; }
+
+    #startScreen {
+      position: fixed; inset: 0; z-index: 30;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 24px;
+      background: radial-gradient(ellipse at 60% 30%, #1a2e40, #09131b);
+    }
+    #startScreen img { width: 160px; border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.6); }
+    #startScreen p { color: #dce8f0; font-size: 17px; text-align: center; line-height: 1.55; max-width: 300px; }
+    #startBtn {
+      padding: 16px 44px; border: none; border-radius: 999px;
+      background: #d28d22; color: #fff; font-size: 20px; font-weight: 700; cursor: pointer;
     }
 
-    html,
-    body {
-      margin: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
-      color: var(--ink);
-      background: #09131b;
+    #arOverlay {
+      display: none; position: fixed; inset: 0 auto auto 0; margin: 12px;
+      width: min(320px, calc(100vw - 24px)); padding: 12px 14px; border-radius: 18px;
+      background: rgba(0,0,0,0.5); color: #fff; font-size: 13px; line-height: 1.4; z-index: 20;
     }
+    #arOverlay strong { display: block; font-size: 15px; margin-bottom: 4px; }
 
-    .overlay {
-      position: fixed;
-      inset: 0 auto auto 0;
-      margin: 14px;
-      width: min(420px, calc(100vw - 28px));
-      padding: 16px 18px;
-      border-radius: 22px;
-      background:
-        linear-gradient(145deg, rgba(255, 255, 255, 0.66), rgba(244, 239, 229, 0.9)),
-        radial-gradient(circle at top right, rgba(210, 141, 34, 0.15), transparent 45%);
-      box-shadow: 0 16px 42px rgba(0, 0, 0, 0.22);
-      backdrop-filter: blur(10px);
-      border: 1px solid var(--edge);
-      z-index: 5;
+    canvas, video {
+      position: fixed !important; top: 0 !important; left: 0 !important;
+      width: 100% !important; height: 100% !important; z-index: 0;
     }
-
-    .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 5px 10px;
-      border-radius: 999px;
-      background: rgba(21, 39, 53, 0.08);
-      letter-spacing: 0.08em;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-    }
-
-    h1 {
-      margin: 12px 0 10px;
-      font-size: clamp(24px, 4vw, 34px);
-      line-height: 1.05;
-    }
-
-    p {
-      margin: 0 0 10px;
-      font-size: 14px;
-      line-height: 1.45;
-    }
-
-    .steps {
-      margin: 14px 0 0;
-      padding-left: 18px;
-      font-size: 13px;
-      line-height: 1.45;
-    }
-
-    .steps li + li {
-      margin-top: 5px;
-    }
-
-    .badge {
-      display: inline-block;
-      margin-top: 10px;
-      padding: 8px 12px;
-      border-radius: 12px;
-      background: rgba(210, 141, 34, 0.13);
-      font-size: 12px;
-      font-weight: 700;
-      color: #6b4510;
-    }
-
-    .corner {
-      position: fixed;
-      right: 12px;
-      bottom: 12px;
-      z-index: 5;
-      padding: 10px 12px;
-      border-radius: 16px;
-      background: rgba(9, 19, 27, 0.54);
-      color: #f8f7f3;
-      font-size: 12px;
-      line-height: 1.35;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      max-width: min(280px, calc(100vw - 24px));
-    }
-
-    @media (max-width: 640px) {
-      .overlay {
-        padding: 14px 14px 16px;
-        border-radius: 18px;
-      }
-
-      .corner {
-        font-size: 11px;
-      }
-    }
+    a-scene { z-index: 1; }
   </style>
-  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-  <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.8/aframe/build/aframe-ar.js"></script>
-  <script src="./app.js"></script>
 </head>
 <body>
-  <div class="overlay">
-    <div class="eyebrow">ControlTask • AR.js</div>
-    <h1>Ding-dong on a custom marker</h1>
-    <p>
-      This page augments the same Ding-dong surface from the previous assignment and anchors it to a
-      unique registration pattern created for this control task.
-    </p>
-    <ol class="steps">
-      <li>Print <code>ControlTask/assets/controltask-marker.png</code>.</li>
-      <li>Glue it to the chosen real object surface.</li>
-      <li>Open this page on the phone and point the camera at the printed marker.</li>
-      <li>Record the result for the repository presentation video.</li>
-    </ol>
-    <div class="badge">Pattern file: <code>pattern-controltask.patt</code></div>
+
+  <div id="startScreen">
+    <img src="./assets/controltask-marker.png" alt="Marker" />
+    <p>Tap Start AR, then point your camera at the marker shown above (or the printed one).</p>
+    <button id="startBtn">▶ Start AR</button>
   </div>
 
-  <div class="corner">
-    Best result: good light, flat printed marker, camera 20-50 cm away, marker fully visible.
+  <div id="arOverlay">
+    <strong>ControlTask • AR.js</strong>
+    Point camera at the marker · keep it fully visible · 20–50 cm away
   </div>
 
-  <a-scene
-    embedded
-    renderer="antialias: true; alpha: true; precision: medium;"
-    vr-mode-ui="enabled: false"
-    device-orientation-permission-ui="enabled: false"
-    arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; patternRatio: 0.5;"
-  >
-    <a-assets>
-      <img id="markerPreview" src="./assets/controltask-marker.png" alt="Control task marker" />
-    </a-assets>
+  <script src="./vendor/aframe.min.js"></script>
+  <script src="./vendor/aframe-ar.js"></script>
 
-    <a-marker
-      type="pattern"
-      url="./assets/pattern-controltask.patt"
-      smooth="true"
-      smooth-count="8"
-      smooth-tolerance="0.01"
-      smooth-threshold="3"
-    >
-      <a-entity light="type: ambient; intensity: 0.85; color: #fff6df"></a-entity>
-      <a-entity light="type: directional; intensity: 1.2; color: #fff4d8" position="1.5 2.2 1.4"></a-entity>
-      <a-entity light="type: point; intensity: 0.65; color: #72d8ff; distance: 8" position="-1 1.1 -1"></a-entity>
+  <script>
+    // Ding-dong component inlined — no external app.js dependency
+    (function () {
+      function rOfZ(z) {
+        var v = (1 - z) * z * z;
+        return v > 0 ? Math.sqrt(v) : 0;
+      }
 
-      <a-entity dingdong-surface position="0 0 0"></a-entity>
+      function buildGeo() {
+        var sU = 72, sV = 48;
+        var pos = [], nor = [], uv = [], idx = [];
+        for (var j = 0; j <= sV; j++) {
+          var v = j / sV, z = -1 + 2 * v, r = rOfZ(z);
+          var drdz = r > 1e-6 ? (z * (2 - 3 * z)) / (2 * r) : 0;
+          for (var i = 0; i <= sU; i++) {
+            var u = i / sU, th = u * Math.PI * 2;
+            var c = Math.cos(th), s = Math.sin(th);
+            pos.push(r * c, r * s, z);
+            uv.push(u, v);
+            var tu = new THREE.Vector3(-r * s, r * c, 0);
+            var tv = new THREE.Vector3(drdz * c, drdz * s, 1);
+            var n = new THREE.Vector3().crossVectors(tu, tv).normalize();
+            nor.push(n.x, n.y, n.z);
+          }
+        }
+        for (var j = 0; j < sV; j++) {
+          for (var i = 0; i < sU; i++) {
+            var a = j * (sU + 1) + i, b = a + 1, c2 = a + sU + 1, d = c2 + 1;
+            idx.push(a, c2, b, b, c2, d);
+          }
+        }
+        var g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+        g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+        g.setIndex(idx);
+        return g;
+      }
 
-      <a-plane
-        position="0 1.65 0"
-        width="1.25"
-        height="0.28"
-        color="#f4efe5"
-        material="transparent: true; opacity: 0.84"
-        text="value: Ding-dong | x^2 + y^2 = k(1-z)z^2; align: center; color: #173546; width: 3.6"
-      ></a-plane>
-    </a-marker>
+      AFRAME.registerComponent('dingdong-surface', {
+        init: function () {
+          var geo = buildGeo();
+          var grp = new THREE.Group();
 
-    <a-entity camera></a-entity>
-  </a-scene>
+          var mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+            color: '#57b7d8', metalness: 0.24, roughness: 0.32, side: THREE.DoubleSide
+          }));
+          mesh.scale.setScalar(0.85);
+          mesh.rotation.x = -Math.PI / 2;
+          mesh.position.y = 0.55;
+          grp.add(mesh);
+
+          var wire = new THREE.LineSegments(
+            new THREE.EdgesGeometry(geo, 22),
+            new THREE.LineBasicMaterial({ color: '#173546', transparent: true, opacity: 0.6 })
+          );
+          wire.scale.copy(mesh.scale);
+          wire.rotation.copy(mesh.rotation);
+          wire.position.copy(mesh.position);
+          grp.add(wire);
+
+          this._grp = grp; this._mesh = mesh; this._wire = wire;
+          this.el.setObject3D('mesh', grp);
+        },
+        tick: function (t) {
+          this._grp.rotation.y += 0.004;
+          var s = 0.85 * (1 + Math.sin(t * 0.0024) * 0.025);
+          this._mesh.scale.setScalar(s);
+          this._wire.scale.setScalar(s);
+        },
+        remove: function () { this.el.removeObject3D('mesh'); }
+      });
+    })();
+  </script>
+
+  <script>
+    document.getElementById('startBtn').addEventListener('click', function () {
+      document.getElementById('startScreen').style.display = 'none';
+      document.getElementById('arOverlay').style.display = 'block';
+
+      document.body.insertAdjacentHTML('beforeend',
+        '<a-scene vr-mode-ui="enabled: false" arjs="sourceType: webcam; debugUIEnabled: false; patternRatio: 0.5;">' +
+          '<a-marker type="pattern" url="./assets/pattern-v2.patt" smooth="true" smooth-count="5" smooth-tolerance="0.01" smooth-threshold="3">' +
+            '<a-entity light="type: ambient; intensity: 0.9;"></a-entity>' +
+            '<a-entity light="type: directional; intensity: 1.3;" position="1.5 2 1.4"></a-entity>' +
+            '<a-entity dingdong-surface></a-entity>' +
+          '</a-marker>' +
+          '<a-entity camera></a-entity>' +
+        '</a-scene>'
+      );
+    });
+  </script>
+
 </body>
 </html>

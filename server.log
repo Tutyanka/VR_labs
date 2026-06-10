@@ -1,0 +1,47 @@
+2026-06-09 18:19:28,179 Starting HTTPS server on port 8443
+2026-06-09 18:19:28,179 Phone URL: https://192.168.0.109:8443/ControlTask/
+2026-06-09 18:19:28,179 Log file: C:\Users\bogda\Downloads\visualization_labs-CGW (4) - Copy - Copy - Copy\visualization_labs-CGW\server.log
+2026-06-09 18:19:32,850 192.168.0.104 "GET /ControlTask/ HTTP/1.1" 200 -
+2026-06-09 18:19:33,085 192.168.0.104 "GET /ControlTask/vendor/aframe.min.js HTTP/1.1" 200 -
+2026-06-09 18:19:33,405 192.168.0.104 "GET /ControlTask/vendor/aframe-ar.js HTTP/1.1" 200 -
+2026-06-09 18:19:33,572 192.168.0.104 "GET /ControlTask/app.js HTTP/1.1" 200 -
+2026-06-09 18:19:33,583 192.168.0.104 "GET /ControlTask/assets/controltask-marker.png HTTP/1.1" 200 -
+2026-06-09 18:19:45,567 192.168.0.109 "GET /ControlTask/ HTTP/1.1" 200 -
+2026-06-09 18:19:45,584 192.168.0.109 "GET /ControlTask/vendor/aframe.min.js HTTP/1.1" 200 -
+2026-06-09 18:19:45,594 192.168.0.109 "GET /ControlTask/vendor/aframe-ar.js HTTP/1.1" 200 -
+2026-06-09 18:19:45,602 192.168.0.109 "GET /ControlTask/app.js HTTP/1.1" 200 -
+2026-06-09 18:19:45,605 192.168.0.109 "GET /ControlTask/assets/controltask-marker.png HTTP/1.1" 200 -
+2026-06-09 18:19:45,794 ERROR 192.168.0.109 code 404, message File not found
+2026-06-09 18:19:45,795 192.168.0.109 "GET /favicon.ico HTTP/1.1" 404 -
+2026-06-09 18:19:48,869 192.168.0.109 "GET /ControlTask/assets/pattern-controltask.patt HTTP/1.1" 200 -
+2026-06-09 18:21:53,221 Starting HTTPS server on port 8443
+2026-06-09 18:21:53,222 Phone URL: https://192.168.0.109:8443/ControlTask/
+2026-06-09 18:21:53,222 Log file: C:\Users\bogda\Downloads\visualization_labs-CGW (4) - Copy - Copy - Copy\visualization_labs-CGW\server.log
+2026-06-09 18:21:53,464 Starting HTTPS server on port 8443
+2026-06-09 18:21:53,465 Phone URL: https://192.168.0.109:8443/ControlTask/
+2026-06-09 18:21:53,465 Log file: C:\Users\bogda\Downloads\visualization_labs-CGW (4) - Copy - Copy - Copy\visualization_labs-CGW\server.log
+2026-06-09 18:21:53,684 Starting HTTPS server on port 8443
+2026-06-09 18:21:53,684 Phone URL: https://192.168.0.109:8443/ControlTask/
+2026-06-09 18:21:53,684 Log file: C:\Users\bogda\Downloads\visualization_labs-CGW (4) - Copy - Copy - Copy\visualization_labs-CGW\server.log
+2026-06-09 18:22:03,066 Starting HTTPS server on port 8443
+2026-06-09 18:22:03,066 Phone URL: https://192.168.0.109:8443/ControlTask/
+2026-06-09 18:22:03,066 Log file: C:\Users\bogda\Downloads\visualization_labs-CGW (4) - Copy - Copy - Copy\visualization_labs-CGW\server.log
+2026-06-09 18:23:20,299 Starting HTTPS server on port 8443
+2026-06-09 18:23:20,299 Phone URL: https://192.168.0.109:8443/ControlTask/
+2026-06-09 18:23:20,299 Log file: C:\Users\bogda\Downloads\visualization_labs-CGW (4) - Copy - Copy - Copy\visualization_labs-CGW\server.log
+2026-06-09 18:23:20,610 192.168.0.109 "GET /ControlTask/ HTTP/1.1" 200 -
+2026-06-09 18:23:20,626 192.168.0.109 "GET /ControlTask/assets/controltask-marker.png HTTP/1.1" 200 -
+2026-06-09 18:23:20,631 192.168.0.109 "GET /ControlTask/vendor/aframe.min.js HTTP/1.1" 200 -
+2026-06-09 18:23:20,637 192.168.0.109 "GET /ControlTask/vendor/aframe-ar.js HTTP/1.1" 200 -
+2026-06-09 18:23:20,644 192.168.0.109 "GET /ControlTask/app.js HTTP/1.1" 200 -
+2026-06-09 18:23:21,017 192.168.0.104 "GET /ControlTask/ HTTP/1.1" 200 -
+2026-06-09 18:23:21,070 192.168.0.104 "GET /ControlTask/vendor/aframe-ar.js HTTP/1.1" 304 -
+2026-06-09 18:23:21,084 192.168.0.104 "GET /ControlTask/vendor/aframe.min.js HTTP/1.1" 304 -
+2026-06-09 18:27:51,471 192.168.0.104 "GET /ControlTask/ HTTP/1.1" 200 -
+2026-06-09 18:27:51,537 192.168.0.104 "GET /ControlTask/vendor/aframe.min.js HTTP/1.1" 304 -
+2026-06-09 18:27:51,553 192.168.0.104 "GET /ControlTask/vendor/aframe-ar.js HTTP/1.1" 304 -
+2026-06-09 18:32:36,329 192.168.0.104 "GET /ControlTask/ HTTP/1.1" 200 -
+2026-06-09 18:32:36,406 192.168.0.104 "GET /ControlTask/vendor/aframe-ar.js HTTP/1.1" 304 -
+2026-06-09 18:32:36,418 192.168.0.104 "GET /ControlTask/vendor/aframe.min.js HTTP/1.1" 304 -
+2026-06-09 18:32:51,512 192.168.0.104 "GET /ControlTask/ HTTP/1.1" 304 -
+2026-06-09 18:32:54,253 192.168.0.104 "GET /ControlTask/assets/pattern-v2.patt HTTP/1.1" 200 -
